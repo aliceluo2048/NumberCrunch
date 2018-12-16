@@ -18,6 +18,15 @@ export class CalculationComponent implements OnInit {
     return c >= "0" && c <= "9";
   }
 
+  /**
+   * number = (+|-)?[0-9]+
+   * pow_expression = number | number '^' pow_expression | "(" arithemetic_expression ")"
+   * 
+   * mult_expression  = pow_expression | number "*" mult_expression | number "/"" mult_expression
+   * 
+   * arithemetic_expression = mult_expression | mult_expression "+" arithmetic_expression | mult_expression "-" arithmetic_expression
+   * 
+   */
   evaluateNumber(string, index) {
     let num = 0;
 
@@ -100,27 +109,26 @@ export class CalculationComponent implements OnInit {
   evaluateArithExpr(string, index) {
     let result = 0;
     let num = 0;
-    let op = "+";
+    let sign = 1;  
 
     let applyOp = function() {
-      if (op == "+") {
+      if (sign == 1) {
         result += num;
         num = 0;
-      } else if (op == "-") {
+      } else if (sign == -1) {
         result -= num;
         num = 0;
       }
-      op = " ";
+      sign = 1;
     }
 
     while (index < string.length) {
       if (string[index] == ")") {
         break;
       } else if (string[index] == "+") {
-        op = "+";
         index++;
       } else if (string[index] == "-") {
-        op = "-";
+        sign *= -1 
         index++;
       } else {
         [num, index] = this.evaluateMultExpr(string, index);
