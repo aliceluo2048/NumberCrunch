@@ -5,150 +5,176 @@ import { Component, OnInit } from '@angular/core';
   templateUrl: "./calculation.component.html",
   styleUrls: ["./calculation.component.css"]
 })
+
 export class CalculationComponent implements OnInit {
   expression: string = "";
   historyExp: string[] = [];
   historyEva: string[] = [];
   historyIndex: number = 0;
+  errorText: string = "";
+  displayHistory = true 
   constructor() {}
 
   ngOnInit() {}
 
-  isDigit(c) {
+  isDigit(c: string) {
     return c >= "0" && c <= "9";
   }
 
+  tokenize(s: string) {
+    let arr = []
+    let i = 0
+    while (i < s.length) {
+      if (this.isDigit(s[i])) {
+        let num = 0
+        while ((i < s.length) && this.isDigit(s[i])) {
+          num *= 10
+          num += Number(s[i])
+          i++
+        }
+        arr.push({sym: "num", num: num})
+      }
+      else {
+        if (s[i] != ' ') {
+          arr.push({sym: String(s[i])});
+        }
+        i++;
+      }
+    }
+    arr.push({sym: "end"})
+    return arr
+  }
+
   /**
-   * number = (+|-)?[0-9]+
-   * pow_expression = number | number '^' pow_expression | "(" arithemetic_expression ")"
+   * number = [0-9]+
+   *
+   * primary = number | "(" arith ")"
    * 
-   * mult_expression  = pow_expression | number "*" mult_expression | number "/"" mult_expression
+   * unary = primary | "+" unary | "-" unary
    * 
-   * arithemetic_expression = mult_expression | mult_expression "+" arithmetic_expression | mult_expression "-" arithmetic_expression
+   * pow = unary | unary '^' pow
+   * 
+   * mult = pow | mult "*" pow | mult "/" pow
+   * 
+   * arith = mult | arith "+" mult | arith "-" mult
    * 
    */
-  evaluateNumber(string, index) {
-    let num = 0;
 
-    while (
-      index < string.length &&
-      (this.isDigit(string[index]) || string[index] == ".")
-    ) {
-      if (string[index] == ".") {
-        let dec = 1 / 10;
-        index += 1;
-        while (this.isDigit(string[index]) && index < string.length) {
-          num += Number(string[index]) * dec;
-          dec *= 1 / 10;
-          index += 1;
-        }
-      } else if (this.isDigit(string[index])) {
-        num *= 10;
-        num += Number(string[index]);
-        index += 1;
-      }
+  parseNumber(r: TokenReader) {
+    if (r.current().sym != "num") {
+      throw "Expected number"
     }
-    return [num, index];
+
+    let num = r.current().num
+    r.advance()
+    return {op: "num", num: num}
   }
 
-  evaluateMultExpr(string, index) {
-    let result = 1;
-    let num = 1;
-    let op = "*";
-    let sign = 1;
-
-    let applyOp = function() {
-      num *= sign;
-      sign = 1;
-      if (op == "*") {
-        result *= num;
-        num = 1;
-      } else if (op == "/") {
-        result /= num;
-        num = 1;
-      } else if (op == "%") {
-        result %= num;
-        num = 1;
+  parsePrimary(r: TokenReader) {
+    if (r.current().sym == "(") {
+      r.advance()
+      let tree = this.parseArith(r)
+      if (r.current().sym != ")") {
+        throw "Expected ')'"
       }
-      op = " ";
-    };
-
-    while (index < string.length) {
-      if (string[index] == "(") {
-        [num, index] = this.evaluateArithExpr(string, index + 1);
-        index++;
-        applyOp();
-      } else if (this.isDigit(string[index])) {
-        [num, index] = this.evaluateNumber(string, index)
-        applyOp();
-      } else if (string[index] == ")") {
-        break;
-      } else if (string[index] == "*") {
-        op = "*";
-        index++;
-      } else if (string[index] == "/") {
-        op = "/";
-        index++;
-      } else if (string[index] == "%") {
-        op = "%";
-        index++;
-      } else if (op != " " && (string[index] == "+" || string[index] == "-")) {
-        if (string[index] == "+") {
-          sign = 1;
-        } else if (string[index] == "-") {
-          sign *= -1;
-        }
-        index++;
-      } else {
-        break;
-      }
+      r.advance()
+      return tree
     }
-    return [result, index];
+    else {
+      return this.parseNumber(r)
+    }
   }
 
-  evaluateArithExpr(string, index) {
-    let result = 0;
-    let num = 0;
-    let sign = 1;  
-
-    let applyOp = function() {
-      if (sign == 1) {
-        result += num;
-        num = 0;
-      } else if (sign == -1) {
-        result -= num;
-        num = 0;
-      }
-      sign = 1;
+  parseUnary(r: TokenReader) {
+    if (r.current().sym == "+") {
+      r.advance()
+      let tree = this.parseUnary(r)
+      return {op: "pos", child: tree}
     }
-
-    while (index < string.length) {
-      if (string[index] == ")") {
-        break;
-      } else if (string[index] == "+") {
-        index++;
-      } else if (string[index] == "-") {
-        sign *= -1 
-        index++;
-      } else {
-        [num, index] = this.evaluateMultExpr(string, index);
-        applyOp();
-      }
+    else if (r.current().sym == "-") {
+      r.advance()
+      let tree = this.parseUnary(r)
+      return {op: "neg", child: tree}
     }
-
-    return [result, index];
+    else {
+      return this.parsePrimary(r)
+    }
   }
 
+  parsePow(r: TokenReader) {
+    let left = this.parseUnary(r)
+    if (r.current().sym == "^") {
+      r.advance()
+      let right = this.parsePow(r)
+      return {op: "^", left: left, right: right}
+    }
+    else {
+      return left
+    }
+  }
+
+  parseMult(r: TokenReader) {
+    let left = this.parsePow(r)
+    while ((r.current().sym == "*") || (r.current().sym == "/")) {
+      let sym = r.current().sym
+      r.advance()
+      let right = this.parsePow(r)
+      let tree = {op: sym, left: left, right: right}
+      left = tree
+    }
+    return left
+  }
+
+  parseArith(r: TokenReader) {
+    let left = this.parseMult(r)
+    while ((r.current().sym == "+") || (r.current().sym == "-")) {
+      let sym = r.current().sym
+      r.advance()
+      let right = this.parseMult(r)
+      let tree = {op: sym, left: left, right: right}
+      left = tree
+    }
+    return left
+  }
+
+  parse(s : string) {
+    let tokens = this.tokenize(s)
+    let reader = new TokenReader(tokens)
+    let tree = this.parseArith(reader)
+    if (reader.current().sym != "end") {
+      throw "Unexpected token at end of string"
+    }
+    return tree
+  }
+
+  evaluate(t: any) {
+    switch (t.op) {
+      case "num": { return t.num }
+      case "pos": { return this.evaluate(t.child) }
+      case "neg": { return -this.evaluate(t.child) }
+      case "^": { return Math.pow(this.evaluate(t.left), this.evaluate(t.right)) }
+      case "*": { return this.evaluate(t.left) * this.evaluate(t.right) }
+      case "/": { return this.evaluate(t.left) / this.evaluate(t.right) }
+      case "-": { return this.evaluate(t.left) - this.evaluate(t.right) }
+      case "+": { return this.evaluate(t.left) + this.evaluate(t.right) }
+      } 
+  }
+  
   doCalc(input) {
-    let i = 0;
-    while (i < input.length) {
-      input = input.replace(/\s/g, "");
-      let result;
-      [result, i] = this.evaluateArithExpr(input, i);
-      this.expression = "";
-      this.historyExp.push(input);
-      this.historyEva.push(" = " + result);
-      this.historyIndex = this.historyExp.length;
+    try {
+      if (input.length != 0) {
+        let parseTree = this.parse(input)
+        let result = this.evaluate(parseTree)
+        this.expression = ""
+        this.displayHistory = true 
+        this.historyExp.push(input)
+        this.historyEva.push(" = " + result)
+        this.historyIndex = this.historyExp.length
+      }
+      this.errorText = ""
+    }
+    catch (ex) {
+      this.errorText = String(ex)
     }
   }
 
@@ -176,5 +202,28 @@ export class CalculationComponent implements OnInit {
     ) {
       this.expression = this.historyExp[this.historyIndex];
     }
+  }
+  clearHistory(){
+    this.historyEva = []
+    this.historyExp = []
+    this.displayHistory = false
+  }
+}
+
+class TokenReader {
+  tokens: any[]
+  index: number
+  
+  constructor(tokens: any[]) {
+    this.tokens = tokens
+    this.index = 0
+  }
+
+  current() {
+    return this.tokens[this.index]
+  }
+
+  advance() {
+    this.index += 1
   }
 }

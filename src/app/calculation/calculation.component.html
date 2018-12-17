@@ -1,10 +1,14 @@
-<div class="calc-display2">
-  <ul *ngFor="let h of historyExp | keyvalue; let i = index">
+<div class="result-display">
+  <ul  *ngFor="let h of historyExp | keyvalue; let i = index">
+    <span *ngIf="displayHistory">
     {{h.value}}
     <br>{{historyEva[i]}}   
+  </span>
   </ul>
 </div>
 
-<div class="calculator__display">
+<div class="input-display">
+  <span id="error-text">{{errorText}}</span>
   <input (keyup.arrowup)="prevHistory()" (keyup.arrowdown)="nextHistory()" type="text" class="form-control" placeholder="Type and press Enter" [(ngModel)]="expression" name="expression" (keyup.enter)="doCalc(expression)"  />
 </div>
+<button type="button" (click)="clearHistory()">Clear history</button>
