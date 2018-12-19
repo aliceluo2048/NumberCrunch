@@ -1,8 +1,8 @@
 <div class="result-display">
-  <ul  *ngFor="let h of historyExp | keyvalue; let i = index">
+  <ul  *ngFor="let h of historyExp">
     <span *ngIf="displayHistory">
-    {{h.value}}
-    <br>{{historyEva[i]}}   
+    {{h.expression}}
+    <br> = {{h.result}}   
   </span>
   </ul>
 </div>
