@@ -8,8 +8,7 @@ import { Component, OnInit } from '@angular/core';
 
 export class CalculationComponent implements OnInit {
   expression: string = "";
-  historyExp: string[] = [];
-  historyEva: string[] = [];
+  historyExp: any[] = [];
   historyIndex: number = 0;
   errorText: string = "";
   displayHistory = true 
@@ -167,8 +166,7 @@ export class CalculationComponent implements OnInit {
         let result = this.evaluate(parseTree)
         this.expression = ""
         this.displayHistory = true 
-        this.historyExp.push(input)
-        this.historyEva.push(" = " + result)
+        this.historyExp.push({expression: input, result: result});
         this.historyIndex = this.historyExp.length
       }
       this.errorText = ""
@@ -187,7 +185,7 @@ export class CalculationComponent implements OnInit {
       this.historyIndex >= 0 &&
       this.historyIndex < this.historyExp.length
     ) {
-      this.expression = this.historyExp[this.historyIndex];
+      this.expression = this.historyExp[this.historyIndex].expression;
     }
   }
 
@@ -200,11 +198,11 @@ export class CalculationComponent implements OnInit {
       this.historyIndex >= 0 &&
       this.historyIndex < this.historyExp.length
     ) {
-      this.expression = this.historyExp[this.historyIndex];
+      this.expression = this.historyExp[this.historyIndex].expression;
     }
   }
+
   clearHistory(){
-    this.historyEva = []
     this.historyExp = []
     this.displayHistory = false
   }
