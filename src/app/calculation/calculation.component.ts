@@ -20,6 +20,22 @@ export class CalculationComponent implements OnInit {
     return c >= "0" && c <= "9";
   }
 
+  factorial(n: number) {
+    n = Math.floor(n)
+    if (n < 0) {
+      return NaN
+    }
+    if (n > 100) {
+      return NaN
+    }
+    let fact = 1
+    while (n > 1) {
+      fact *= n
+      n -= 1 
+    }
+    return fact 
+  }
+
   tokenize(s: string) {
     let arr = [];
     let i = 0;
@@ -64,8 +80,10 @@ export class CalculationComponent implements OnInit {
    * number = [0-9]+
    *
    * primary = alpha | number | "(" arith ")"
+   * 
+   * factorial = primary | factorial "!"
    *
-   * unary = primary | "+" unary | "-" unary
+   * unary = factorial | "+" unary | "-" unary
    *
    * pow = unary | unary '^' pow
    *
@@ -76,14 +94,14 @@ export class CalculationComponent implements OnInit {
    * assign = arith | arith "=" assign
    */
 
-   parseAlpha(r: TokenReader) {
+  parseAlpha(r: TokenReader) {
     if (r.current().sym != "alpha") {
       throw "Expected variable name"
     } 
     let letter = r.current().alpha
     r.advance()
     return { op: "alpha", alpha: letter }
-   }
+  }
 
   parseNumber(r: TokenReader) {
     if (r.current().sym != "num") {
@@ -93,6 +111,7 @@ export class CalculationComponent implements OnInit {
     r.advance()
     return { op: "num", num: num }
   }
+
   parsePrimary(r: TokenReader) {
     if (r.current().sym == "(") {
       r.advance();
@@ -111,6 +130,15 @@ export class CalculationComponent implements OnInit {
     }
   }
 
+  parseFactorial(r: TokenReader) {
+    let tree = this.parsePrimary(r);
+    while (r.current().sym == "!") {
+      r.advance();
+      tree = { op: "!", child: tree };
+    }
+    return tree;
+  }
+
   parseUnary(r: TokenReader) {
     if (r.current().sym == "+") {
       r.advance();
@@ -121,7 +149,7 @@ export class CalculationComponent implements OnInit {
       let tree = this.parseUnary(r);
       return { op: "neg", child: tree };
     } else {
-      return this.parsePrimary(r);
+      return this.parseFactorial(r);
     }
   }
 
@@ -199,6 +227,9 @@ export class CalculationComponent implements OnInit {
       case "num": {
         return t.num;
       }
+      case "!": {
+        return this.factorial(this.evaluate(t.child));
+      }
       case "pos": {
         return this.evaluate(t.child);
       }
@@ -223,7 +254,7 @@ export class CalculationComponent implements OnInit {
     }
   }
 
-  doCalc(input) {
+  doCalc(input: string) {
     try {
       if (input.length != 0) {
         let parseTree = this.parse(input)
