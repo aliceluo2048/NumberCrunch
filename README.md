@@ -1,4 +1,5 @@
 ## NumberCrunch
+[Demo](https://numbercrunch-17c8c.firebaseapp.com/)
 
 - Keyboard driven calculator built without the eval function
 - Perform 5 operators (+, -, /, *, ^) with operator precedence and parentheses
