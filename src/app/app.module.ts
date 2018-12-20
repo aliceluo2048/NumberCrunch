@@ -9,7 +9,6 @@ import { AppComponent } from './app.component';
   declarations: [
     AppComponent,
 	  CalculationComponent,
-
   ],
   imports: [
     BrowserModule,
