@@ -12,7 +12,7 @@ export class CalculationComponent implements OnInit {
   historyIndex: number = 0;
   errorText: string = "";
   displayHistory = true;
-  variables: { [id: string] : any } = {};
+  variables: {} = {}
   constructor() {}
   
   ngOnInit() {}
@@ -39,27 +39,6 @@ export class CalculationComponent implements OnInit {
           i++
         }
         let num = Number(s.slice(start, i))
-      /*  let num = 0;
-        let seen = false;
-        let fraction = 1 / 10;
-        while ((i < s.length && this.isDigit(s[i])) || s[i] == ".") {
-          if (s[i] == ".") {
-            if (seen) {
-              throw "Only one decimal point allowed";
-            }
-            seen = true;
-            i++;
-          } else {
-            if (seen) {
-              num += Number(s[i]) * fraction;
-              fraction *= 1/10;
-            } else {
-              num *= 10;
-              num += Number(s[i]);
-            }
-            i++;
-          }
-        }*/
         arr.push({ sym: "num", num: num });
       } 
       else if (/[a-zA-Z]/.test(s[i])){
@@ -67,7 +46,7 @@ export class CalculationComponent implements OnInit {
         while (i < s.length &&  /[a-zA-Z]/.test(s[i]) || this.isDigit(s[i])) {
           i++
         }
-        let alpha = s.slice(start, i) 
+        let alpha = s.slice(start, i)
         arr.push({sym: "alpha", alpha: alpha })
       }
       else {
@@ -95,46 +74,41 @@ export class CalculationComponent implements OnInit {
    *
    * arith = mult | arith "+" mult | arith "-" mult
    *
-   * assign = alpha "=" arith
+   * assign = arith | arith "=" assign
    */
 
-   parseLetter(r: TokenReader) {
+   parseAlpha(r: TokenReader) {
     if (r.current().sym != "alpha") {
-      throw "invalid expression"
+      throw "Expected variable name"
     } 
-    /* if (r.current().alpha in this.variables) {
-   
-      return {op: "num", num: this.variables[r.current().sym]}
-    }  */
     let letter = r.current().alpha
     r.advance()
-    return { op: 'alpha', alpha: letter }
-
+    return { op: "alpha", alpha: letter }
    }
 
   parseNumber(r: TokenReader) {
-    if (r.current().sym != "num" && r.current().sym!="alpha") {
-      throw "Expected number";
+    if (r.current().sym != "num") {
+      throw "Expected number"
     }
-    else if (r.current().sym == "alpha")  {
-      return this.parseLetter(r)
-    }
-    else { let num = r.current().num;
-    r.advance();
-    return { op: "num", num: num };
-    }
+    let num = r.current().num
+    r.advance()
+    return { op: "num", num: num }
   }
   parsePrimary(r: TokenReader) {
     if (r.current().sym == "(") {
       r.advance();
-      let tree = this.parseArith(r);
+      let tree = this.parseAssign(r);
       if (r.current().sym != ")") {
         throw "Expected ')'";
       }
       r.advance();
       return tree;
-    } else {
+    } else if (r.current().sym == "num") {
       return this.parseNumber(r);
+    } else if (r.current().sym == "alpha") {
+      return this.parseAlpha(r);
+    } else {
+      throw "Expected number, variable name, or '('"
     }
   }
 
@@ -188,34 +162,37 @@ export class CalculationComponent implements OnInit {
   }
 
   parseAssign(r: TokenReader) {
-    let left = this.parseArith(r)
-    while (r.current().sym == "=") {
-      let sym = r.current().sym
-      r.advance()
-      let right = this.parseArith(r)
-      let tree = { op: sym, left:  left, right: right}
-      left = tree 
+    let left = this.parseArith(r);
+    if (r.current().sym == "=") {
+      r.advance();
+      let right = this.parseAssign(r);
+      return { op: "=", left: left, right: right };
+    } else {
+      return left;
     }
-    return left 
   }
   parse(s: string) {
     let tokens = this.tokenize(s);
     let reader = new TokenReader(tokens);
     let tree = this.parseAssign(reader);
     if (reader.current().sym != "end") {
-      throw "Unexpected token at end of string";
+      throw "Unexpected token at end of string"
     }
     return tree;
   }
 
   evaluate(t: any) {
     switch (t.op) {
-      case = "alpha" : {
-        if (t.alpha in this.variables) {
-          
+      case "alpha": {
+        if (!(t.alpha in this.variables)) {
+          throw "Variable '" + t.alpha + "' is undefined"
         }
+        return this.variables[t.alpha]
       }
       case "=": {
+        if (t.left.op != "alpha") {
+          throw "Left side of assignment must be a variable name"
+        }
         let res = this.evaluate(t.right)
         this.variables[t.left.alpha] = res
         return res
