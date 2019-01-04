@@ -1,4 +1,5 @@
 import { Component, OnInit } from "@angular/core";
+import { PARAMETERS } from '@angular/core/src/util/decorators';
 
 @Component({
   selector: "app-calculation",
@@ -12,12 +13,29 @@ export class CalculationComponent implements OnInit {
   errorText: string = "";
   displayHistory = true;
   variables: {} = {}
+  functions: {} = {} 
   constructor() {}
   
   ngOnInit() {}
 
   isDigit(c: string) {
     return c >= "0" && c <= "9";
+  }
+
+  factorial(n: number) {
+    n = Math.floor(n)
+    if (n < 0) {
+      return NaN
+    }
+    if (n > 100) {
+      return NaN
+    }
+    let fact = 1
+    while (n > 1) {
+      fact *= n
+      n -= 1 
+    }
+    return fact 
   }
 
   tokenize(s: string) {
@@ -45,8 +63,8 @@ export class CalculationComponent implements OnInit {
         while (i < s.length &&  /[a-zA-Z]/.test(s[i]) || this.isDigit(s[i])) {
           i++
         }
-        let alpha = s.slice(start, i)
-        arr.push({sym: "alpha", alpha: alpha })
+        let id = s.slice(start, i)
+        arr.push({sym: "id", id: id })
       }
       else {
         if (s[i] != " ") {
@@ -59,13 +77,17 @@ export class CalculationComponent implements OnInit {
     return arr;
   }
   /**
-   * alpha = [a-zA-Z][a-zA-z0-9]*
+   * id = [a-zA-Z_][a-zA-z0-9_]*
    *
    * number = [0-9]+
+   * 
+   * func = id "(" arith ")"
    *
-   * primary = alpha | number | "(" arith ")"
+   * primary = id | number | "(" arith ")" | func 
+   * 
+   * factorial = primary | factorial "!"
    *
-   * unary = primary | "+" unary | "-" unary
+   * unary = factorial | "+" unary | "-" unary
    *
    * pow = unary | unary '^' pow
    *
@@ -76,14 +98,14 @@ export class CalculationComponent implements OnInit {
    * assign = arith | arith "=" assign
    */
 
-   parseAlpha(r: TokenReader) {
-    if (r.current().sym != "alpha") {
+  parseId(r: TokenReader) {
+    if (r.current().sym != "id") {
       throw "Expected variable name"
     } 
-    let letter = r.current().alpha
+    let letter = r.current().id
     r.advance()
-    return { op: "alpha", alpha: letter }
-   }
+    return { op: "id", id: letter }
+  }
 
   parseNumber(r: TokenReader) {
     if (r.current().sym != "num") {
@@ -93,6 +115,7 @@ export class CalculationComponent implements OnInit {
     r.advance()
     return { op: "num", num: num }
   }
+  
   parsePrimary(r: TokenReader) {
     if (r.current().sym == "(") {
       r.advance();
@@ -104,11 +127,26 @@ export class CalculationComponent implements OnInit {
       return tree;
     } else if (r.current().sym == "num") {
       return this.parseNumber(r);
-    } else if (r.current().sym == "alpha") {
-      return this.parseAlpha(r);
+    } else if (r.current().sym == "id") {
+        if (r.next().sym == "(") {
+          let op = "func" 
+          let left = this.parseId(r)
+          let right = this.parsePrimary(r)
+          return {op, left: left, right: right}
+        } 
+        else { return this.parseId(r); } 
     } else {
-      throw "Expected number, variable name, or '('"
+        throw "Expected number, variable name, or '('"
     }
+  }
+
+  parseFactorial(r: TokenReader) {
+    let tree = this.parsePrimary(r);
+    while (r.current().sym == "!") {
+      r.advance();
+      tree = { op: "!", child: tree };
+    }
+    return tree;
   }
 
   parseUnary(r: TokenReader) {
@@ -121,7 +159,7 @@ export class CalculationComponent implements OnInit {
       let tree = this.parseUnary(r);
       return { op: "neg", child: tree };
     } else {
-      return this.parsePrimary(r);
+      return this.parseFactorial(r);
     }
   }
 
@@ -179,58 +217,102 @@ export class CalculationComponent implements OnInit {
     }
     return tree;
   }
+  bindTree(tree, argName) {
+    if (tree.op == "id") {
+      if (tree.id == argName) {
+        return {op: "arg"}
+      } 
+    }
+    let newTree = Object.assign({}, tree)
+    if (tree.left) {
+      newTree.left = this.bindTree(tree.left, argName)
+    }
+    if (tree.right) {
+      newTree.right = this.bindTree(tree.right, argName)
+    }
+    if (tree.child) {
+      newTree.child = this.bindTree(tree.child, argName)
+    }
+    return newTree
+  } 
 
-  evaluate(t: any) {
+  evaluate(t: any, params?) {
     switch (t.op) {
-      case "alpha": {
-        if (!(t.alpha in this.variables)) {
-          throw "Variable '" + t.alpha + "' is undefined"
-        }
-        return this.variables[t.alpha]
+      case "arg" : {
+        return params
       }
+      case "id": {
+        if (!(t.id in this.variables)) {
+          if (t.id in this.functions) {
+            throw "Variable '" + t.id + "' is undefined (it is a function)"
+          }
+          else {
+            throw "Variable '" + t.id + "' is undefined"
+          }
+        }
+        return this.variables[t.id]
+      }
+      case "func": {
+        if (!(t.left.id in this.functions)) {
+          throw "Function '" + t.left.id + "' undefined"
+        }
+        let argValue = this.evaluate(t.right, params)
+        return this.evaluate(this.functions[t.left.id], argValue)
+      }
+      
       case "=": {
-        if (t.left.op != "alpha") {
+        if (t.left.op == "func") {
+          if (t.left.right.op != "id") {
+            throw "Variable name expected inside function parentheses"
+          }
+          this.functions[t.left.left.id] = this.bindTree(t.right, t.left.right.id)
+          return ""
+        }
+        if (t.left.op != "id") {
           throw "Left side of assignment must be a variable name"
         }
         let res = this.evaluate(t.right)
-        this.variables[t.left.alpha] = res
+        this.variables[t.left.id] = res
         return res
       }
-      case "num": {
+      case "num" : {
         return t.num;
       }
+      case "!": {
+        return this.factorial(this.evaluate(t.child, params));
+      }
       case "pos": {
-        return this.evaluate(t.child);
+        return this.evaluate(t.child, params);
       }
       case "neg": {
-        return -this.evaluate(t.child);
+        return -this.evaluate(t.child, params);
       }
       case "^": {
-        return Math.pow(this.evaluate(t.left), this.evaluate(t.right));
+        return Math.pow(this.evaluate(t.left, params), this.evaluate(t.right, params));
       }
       case "*": {
-        return this.evaluate(t.left) * this.evaluate(t.right);
-      }
+        return this.evaluate(t.left, params) * this.evaluate(t.right, params);
+      } 
       case "/": {
-        return this.evaluate(t.left) / this.evaluate(t.right);
+        return this.evaluate(t.left, params) / this.evaluate(t.right, params);
       }
       case "-": {
-        return this.evaluate(t.left) - this.evaluate(t.right);
+        return this.evaluate(t.left, params) - this.evaluate(t.right, params);
       }
       case "+": {
-        return this.evaluate(t.left) + this.evaluate(t.right);
+        return this.evaluate(t.left, params) + this.evaluate(t.right, params);
       }
     }
   }
 
-  doCalc(input) {
+  doCalc(input: string) {
     try {
       if (input.length != 0) {
         let parseTree = this.parse(input)
         let result = this.evaluate(parseTree)
         this.expression = ""
         this.displayHistory = true 
-        this.historyExp.push({expression: input, result: result});
+        this.historyExp.push({expression: input, result: result, isNumber: typeof(result) == "number"});
         this.historyIndex = this.historyExp.length
       }
       this.errorText = "";
@@ -286,8 +368,11 @@ class TokenReader {
   current() {
     return this.tokens[this.index];
   }
+  next() {
+    return this.tokens[this.index + 1]
+  }
 
   advance() {
-    this.index += 1;
+    this.index++;
   }
 }
