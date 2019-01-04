@@ -1,9 +1,14 @@
 <div class="result-display">
   <ul  *ngFor="let h of historyExp">
     <span *ngIf="displayHistory">
-    {{h.expression}}
-    <br> = {{h.result}}   
-  </span>
+      {{h.expression}}
+      <span *ngIf="h.isNumber">
+        <br> = {{h.result}}
+      </span>
+      <span *ngIf="!h.isNumber">
+        <br> <em>{{h.result}}</em>
+      </span>
+    </span>
   </ul>
 </div>
 
