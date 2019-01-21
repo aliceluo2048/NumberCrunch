@@ -1,4 +1,5 @@
-import { Component, OnInit } from "@angular/core"
+import { Component, OnInit, ViewChild } from "@angular/core"
+import { GraphingComponent } from '../graphing/graphing.component';
 
 @Component({
   selector: "app-calculation",
@@ -6,6 +7,8 @@ import { Component, OnInit } from "@angular/core"
   styleUrls: ["./calculation.component.css"]
 })
 export class CalculationComponent implements OnInit {
+  @ViewChild("graphingComponent") graphingComponent: GraphingComponent;
+
   expression: string = ""
   historyExp: any[] = []
   historyIndex: number = 0
@@ -15,7 +18,27 @@ export class CalculationComponent implements OnInit {
   functions: {} = {} 
   constructor() {}
   
-  ngOnInit() {}
+
+  ngOnInit() {
+    this.variables["E"] = Math.E
+    this.variables["pi"] = Math.PI
+    this.addBuiltinFunc("exp", 1, (args: number[]) => Math.exp(args[0]))
+    this.addBuiltinFunc("log", 1, (args: number[]) => Math.log(args[0]))
+    this.addBuiltinFunc("sqrt", 1, (args: number[]) => Math.sqrt(args[0]))
+    this.addBuiltinFunc("sin", 1, (args: number[]) => Math.sin(args[0]))
+    this.addBuiltinFunc("cos", 1, (args: number[]) => Math.cos(args[0]))
+    this.addBuiltinFunc("tan", 1, (args: number[]) => Math.tan(args[0]))
+    this.addBuiltinFunc("asin", 1, (args: number[]) => Math.asin(args[0]))
+    this.addBuiltinFunc("acos", 1, (args: number[]) => Math.acos(args[0]))
+    this.addBuiltinFunc("atan", 1, (args: number[]) => Math.atan(args[0]))
+  }
+
+  addBuiltinFunc(name: string, argCount: number, func: any) {
+    this.functions[name] = {
+      argCount: argCount,
+      tree: {op: "builtin", func: func}
+    }
+  }
 
   isDigit(c: string) {
     return c >= "0" && c <= "9"
@@ -80,7 +103,7 @@ export class CalculationComponent implements OnInit {
    *
    * number = [0-9]+
    * 
-   * func = id "(" comma ")"
+   * func = id "(" comma ")" | trig "(" comma ")""
    *
    * primary = id | number | "(" comma ")" | func 
    * 
@@ -102,7 +125,7 @@ export class CalculationComponent implements OnInit {
   parseId(r: TokenReader) {
     if (r.current().sym != "id") {
       throw "Expected variable name"
-    } 
+    }
     let idName = r.current().id
     r.advance()
     return { op: "id", id: idName }
@@ -116,7 +139,7 @@ export class CalculationComponent implements OnInit {
     r.advance()
     return { op: "num", num: num }
   }
-  
+
   parsePrimary(r: TokenReader) {
     if (r.current().sym == "(") {
       r.advance()
@@ -273,7 +296,7 @@ export class CalculationComponent implements OnInit {
         return args[t.pos]
       }
       case "id": {
-        if (!(t.id in this.variables)) {
+        if (!(t.id in this.variables) || !t.id == args) {
           if (t.id in this.functions) {
             throw "Variable '" + t.id + "' is undefined (it is a function)"
           }
@@ -282,6 +305,9 @@ export class CalculationComponent implements OnInit {
           }
         }
         return this.variables[t.id]
+      }
+      case "builtin": {
+        return t.func(args)
       }
       case "func": {
         if (!(t.left.id in this.functions)) {
@@ -324,6 +350,7 @@ export class CalculationComponent implements OnInit {
       case ",": {
         throw "Unexpected ','"
       }
+  
       case "num": {
         return t.num
       }
@@ -363,12 +390,29 @@ export class CalculationComponent implements OnInit {
         this.displayHistory = true 
         this.historyExp.push({expression: input, result: result, isNumber: typeof(result) == "number"})
         this.historyIndex = this.historyExp.length
+        
       }
       this.errorText = ""
     } catch (ex) {
       this.errorText = String(ex)
     }
   }
+
+  toGraph(expression: string) {
+    if (!(expression in this.functions)) {
+      alert(expression + " is not a defined function")
+      return
+    }
+    let f = this.functions[expression]
+    if (f.argCount != 1) {
+      alert(expression + " takes " + f.argCount + " arguments! cano only grpah 1 var");
+      return
+    }
+    this.graphingComponent.graphFunction(x => {
+      return this.evaluate(f.tree, [x]);
+    });
+  }
+
   clearInput(){
     this.expression = ""
   }

@@ -1,25 +1,30 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, ViewChild, ElementRef, OnInit, Input } from '@angular/core';
 
 @Component({
   selector: 'app-graphing',
-  templateUrl: './graphing.component.html',
+  templateUrl: "./graphing.component.html",
   styleUrls: ['./graphing.component.css']
 })
-export class GraphingComponent implements OnInit {
+export class GraphingComponent implements OnInit{
   @ViewChild('myCanvas') canvasRef: ElementRef
-
   constructor() { }
-  ngOnInit() { 
+  
+  ngOnInit() {
+  }
+  
+  graphFunction(f) {
+    let ctx = CanvasRenderingContext2D = this.canvasRef.nativeElement.getContext('2d')
+
     let grid_size = 25
     let canvas_width = 600
     let canvas_height = 500
-
     let num_lines_x = canvas_height/grid_size
     let num_lines_y = canvas_width/grid_size
     let x_axis_distance_grid = num_lines_x/2 
     let y_axis_distance_grid = num_lines_y/2 
-    
-    let ctx: CanvasRenderingContext2D = this.canvasRef.nativeElement.getContext('2d')
+        
+    ctx.clearRect(0, 0, this.canvasRef.nativeElement.width, this.canvasRef.nativeElement.height)
+    ctx.save()
     
     // Grid lines along x-axis 
     for(let i = 0; i<= num_lines_x; i++) {
@@ -62,7 +67,7 @@ export class GraphingComponent implements OnInit {
       }
       ctx.stroke();
     } 
-    ctx.translate(y_axis_distance_grid * grid_size, x_axis_distance_grid * grid_size)
+    ctx.translate(y_axis_distance_grid *grid_size, x_axis_distance_grid * grid_size)
  
     // X axis tick marks 
     for (let i = 1; i < y_axis_distance_grid; i++) {
@@ -97,7 +102,7 @@ export class GraphingComponent implements OnInit {
       ctx.lineWidth = 1;
       ctx.strokeStyle = "#000000";
 
-      ctx.moveTo(-3, grid_size * i + 0.5)
+      ctx.moveTo(-3,grid_size * i + 0.5)
       ctx.lineTo(3, grid_size * i + 0.5)
       ctx.stroke()
 
@@ -118,12 +123,9 @@ export class GraphingComponent implements OnInit {
       ctx.textAlign = 'start'
       ctx.fillText("" + i, 8, -grid_size*i + 3)
     }
- 
+  
     ctx.beginPath()
 
-    let f = function(x) {
-      return (x + 9) * Math.abs(x + 6) * (x + 3) * Math.abs(x - 3) * (x - 6) / (6 ** 5) * 4
-    }
     let left = -12
     let right = 12
     let stepFraction = 0.01
@@ -137,5 +139,9 @@ export class GraphingComponent implements OnInit {
       prevX = x
       prevY = y
     }
+
+    ctx.restore()
+    
   }
+  
 }
