@@ -64,7 +64,7 @@ export class CalculationComponent implements OnInit {
     let arr = []
     let i = 0
     while (i < s.length) {
-      
+
       if (this.isDigit(s[i]) || s[i] == ".") {
         let seen = false 
         let start = i 
@@ -235,6 +235,10 @@ export class CalculationComponent implements OnInit {
   }
 
   parseComma(r: TokenReader) {
+    if (r.next() == "end") {
+      r.advance();
+      return 
+    }
     let left = this.parseAssign(r)
     if (r.current().sym == ",") {
       r.advance()
@@ -243,7 +247,7 @@ export class CalculationComponent implements OnInit {
     }
     return left 
   }
-
+  
   parse(s: string) {
     let tokens = this.tokenize(s)
     let reader = new TokenReader(tokens)
@@ -385,6 +389,9 @@ export class CalculationComponent implements OnInit {
     try {
       if (input.length != 0) {
         let parseTree = this.parse(input)
+        if (parseTree.left && parseTree.left.id == 'graph') {
+          return this.toGraph(parseTree.right.left.id)
+        } 
         let result = this.evaluate(parseTree)
         this.expression = ""
         this.displayHistory = true 
@@ -405,7 +412,7 @@ export class CalculationComponent implements OnInit {
     }
     let f = this.functions[expression]
     if (f.argCount != 1) {
-      alert(expression + " takes " + f.argCount + " arguments! cano only grpah 1 var");
+      alert(expression + " takes " + f.argCount + " arguments! can only graph 1 var");
       return
     }
     this.graphingComponent.graphFunction(x => {
