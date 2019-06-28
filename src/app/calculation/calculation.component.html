@@ -17,7 +17,6 @@
   <input name="expression" (keyup.arrowup)="prevHistory()" (keyup.arrowdown)="nextHistory()" type="text" class="form-control" placeholder="Type and press Enter" [(ngModel)]="expression" (keyup.enter)="doCalc(expression)"  />
   <button type="botton" (click)="clearInput()">Clear</button>
   <button type="button" (click)="clearHistory()">Clear history</button>
-  <button type="button" (click)="toGraph(expression)">Graph</button>
 </div>
 
 <app-graphing #graphingComponent></app-graphing>
