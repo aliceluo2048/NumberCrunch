@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from "@angular/core";
+import { Component, ViewChild, AfterViewInit} from "@angular/core";
 import { GraphingComponent } from "../graphing/graphing.component";
 
 @Component({
@@ -6,18 +6,17 @@ import { GraphingComponent } from "../graphing/graphing.component";
   templateUrl: "./calculation.component.html",
   styleUrls: ["./calculation.component.css"]
 })
-export class CalculationComponent implements OnInit {
+export class CalculationComponent implements AfterViewInit {
   @ViewChild("graphingComponent") graphingComponent: GraphingComponent;
   expression: string = "";
   historyExp: any[] = [];
   historyIndex: number = 0;
   errorText: string = "";
-  displayHistory = true;
   variables: {} = {};
   functions: {} = {};
   constructor() {}
 
-  ngOnInit() {
+  ngAfterViewInit() {
     this.variables["E"] = Math.E;
     this.variables["pi"] = Math.PI;
     this.addBuiltinFunc("exp", 1, (args: number[]) => Math.exp(args[0]));
@@ -47,7 +46,7 @@ export class CalculationComponent implements OnInit {
     if (n < 0) {
       return NaN;
     }
-    if (n > 100) {
+    if (n > 500) {
       return NaN;
     }
     let fact = 1;
@@ -98,7 +97,7 @@ export class CalculationComponent implements OnInit {
    *
    * number = [0-9]+
    *
-   * func = id "(" comma ")" | trig "(" comma ")""
+   * func = id "(" comma ")" 
    *
    * primary = id | number | "(" comma ")" | func
    *
@@ -122,6 +121,9 @@ export class CalculationComponent implements OnInit {
       throw "Expected variable name";
     }
     let idName = r.current().id;
+    if (idName == "clear") {
+      throw "Cannot name a variable after an action";
+    }
     r.advance();
     return { op: "id", id: idName };
   }
@@ -247,7 +249,7 @@ export class CalculationComponent implements OnInit {
     let reader = new TokenReader(tokens);
     let tree = this.parseComma(reader);
     if (reader.current().sym != "end") {
-      throw "Unexpected token at end of string";
+      throw "Unable to parse expression. Please enter a valid expression";
     }
     return tree;
   }
@@ -390,19 +392,17 @@ export class CalculationComponent implements OnInit {
   doCalc(input: string) {
     try {
       if (input.length != 0) {
-        let parseTree = this.parse(input);
-        if (parseTree.left && parseTree.left.id == "graph") {
-          let lowx = this.evaluate(parseTree.right.right.left);
-          let upperx = this.evaluate(parseTree.right.right.right);
-          if (upperx <= lowx) {
-            throw "upper bound of x must be less than/equal to lower bound";
-          }
-          return this.toGraph(parseTree.right.left.id, lowx, upperx);
+        if (input.trim() == "clear") {
+          //this.expression = "";
+          return this.clearHistory();
         }
-
-        let result = this.evaluate(parseTree);
+        let parseTree = this.parse(input);
+        let showResult = this.toGraph(parseTree)
+        let result = ""
+        if (showResult) {
+          result = this.evaluate(parseTree);
+        }
         this.expression = "";
-        this.displayHistory = true;
         this.historyExp.push({
           expression: input,
           result: result,
@@ -412,28 +412,38 @@ export class CalculationComponent implements OnInit {
       }
       this.errorText = "";
     } catch (ex) {
-      this.errorText = String(ex);
+      this.errorText = ex;
     }
   }
 
-  toGraph(expression: string, lowx, upperx) {
+  toGraph(parseTree) {
+    if (parseTree.left && parseTree.left.id == "graph") {
+      if (parseTree.right.op != "," || parseTree.right.right.op != ",") {
+        throw "Three arguments required to graph a function";
+      }
+      let lowx = this.evaluate(parseTree.right.right.left);
+      let upperx = this.evaluate(parseTree.right.right.right);
+      if (upperx < lowx) {
+        throw "upper bound of x must be less than/equal to lower bound";
+      }
+      this.startGraph(parseTree.right.left.id, lowx, upperx);
+      return false
+    }
+    return true
+  }
+
+  startGraph(expression: string, lowx, upperx) {
     if (!(expression in this.functions)) {
       alert(expression + " is not a defined function");
       return;
     }
     let f = this.functions[expression];
     if (f.argCount != 1) {
-      alert(
-        expression + " takes " + f.argCount + " arguments! can only graph 1 var"
-      );
+      alert(expression + " takes " + f.argCount + " arguments! can only graph 1 var");
       return;
     }
     this.graphingComponent.graphFunction(
-      x => {
-        return this.evaluate(f.tree, [x]);
-      },
-      lowx,
-      upperx
+      x => { return this.evaluate(f.tree, [x]); }, lowx, upperx
     );
   }
 
@@ -468,8 +478,8 @@ export class CalculationComponent implements OnInit {
   }
 
   clearHistory() {
+    this.expression = "";
     this.historyExp = [];
-    this.displayHistory = false;
   }
 }
 

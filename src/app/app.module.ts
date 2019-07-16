@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { CalculationComponent } from './calculation/calculation.component';
 import { AppComponent } from './app.component';
 import { GraphingComponent } from './graphing/graphing.component';
+import { AutofocusDirective } from './autofocus.directive';
 
 
 @NgModule({
@@ -11,6 +12,7 @@ import { GraphingComponent } from './graphing/graphing.component';
     AppComponent,
 	  CalculationComponent,
 	  GraphingComponent,
+	  AutofocusDirective,
   ],
   imports: [
     BrowserModule,
