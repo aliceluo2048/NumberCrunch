@@ -13,10 +13,9 @@ export class GraphingComponent implements OnInit {
   ngOnInit() {}
 
   graphFunction(f, low_x, high_x) {
-    let ctx = (CanvasRenderingContext2D = this.canvasRef.nativeElement.getContext("2d"));
-
-    let canvas_width = 600;
-    let canvas_height = 500;
+    let ctx: CanvasRenderingContext2D = this.canvasRef.nativeElement.getContext("2d");
+    let canvas_width = ctx.canvas.clientWidth;
+    let canvas_height = ctx.canvas.clientHeight - 5;
     let num_x_intervals = Math.abs(high_x - low_x);
     let x_interval_size = canvas_width / num_x_intervals;
 
@@ -59,7 +58,7 @@ export class GraphingComponent implements OnInit {
       }
       y_points.push(y);
     }
-
+  
     let num_y_intervals = Math.abs(upper_y_bound - lower_y_bound);
     let y_interval_size = canvas_height / num_y_intervals;
     let y_origin = Math.abs(upper_y_bound);

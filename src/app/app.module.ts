@@ -1,11 +1,10 @@
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CalculationComponent } from './calculation/calculation.component';
+import { CalculationComponent } from './calculation/interface/calculation.component';
 import { AppComponent } from './app.component';
 import { GraphingComponent } from './graphing/graphing.component';
 import { AutofocusDirective } from './autofocus.directive';
-
 
 @NgModule({
   declarations: [
